@@ -7,6 +7,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
 {% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/process.css') }}">
+{% endblock %}
+
 {% block progress_indicator %}
 <div class="progress-breadcrumb">
     <div class="breadcrumb-item active">1. Input</div>

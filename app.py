@@ -227,10 +227,10 @@ def process_clip_generation(job_id):
         # Generate the clip
         logger.info(f"Generating clip for job {job_id} with URL: {job.url}, duration: {actual_duration}, start: {actual_start_time}")
         
-        clip_data = clipper.generate_auto_peak_viral_clip(
+        clip_data = clipper.generate_viral_clip(
             video_url=job.url,
             duration=actual_duration,
-            manual_start_time=actual_start_time
+            start_time=actual_start_time
         )
         
         logger.info(f"Clip generation result for job {job_id}: {type(clip_data)}, has data: {bool(clip_data)}")

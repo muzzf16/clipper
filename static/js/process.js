@@ -7,12 +7,12 @@ class ProcessPage {
         this.progressCircle = document.getElementById('progress-circle');
         this.progressPercentage = document.getElementById('progress-percentage');
         this.progressMessage = document.getElementById('progress-message');
-        
+
         if (!this.jobId) {
             window.location.href = '/';
             return;
         }
-        
+
         this.initializeSocket();
         this.checkJobStatus();
     }
@@ -52,21 +52,27 @@ class ProcessPage {
     }
 
     async checkJobStatus() {
+        console.log('Checking job status for:', this.jobId);
         try {
             const response = await fetch(`/api/job_status/${this.jobId}`);
             if (!response.ok) {
+                console.error('Job status response not OK:', response.status);
                 throw new Error('Job not found');
             }
 
             const job = await response.json();
-            
+            console.log('Job status:', job);
+
             if (job.status === 'completed') {
                 // Job already completed, redirect to edit
+                console.log('Job completed, redirecting to edit page');
                 window.location.href = `/edit?job_id=${this.jobId}`;
             } else if (job.status === 'error') {
+                console.error('Job error:', job.error);
                 this.showError(job.error || 'Processing failed');
             } else {
                 // Update UI with current progress
+                console.log('Updating progress:', job.progress);
                 this.updateProgress({
                     progress: job.progress || 0,
                     message: job.message || 'Processing...'
@@ -157,196 +163,31 @@ class ProcessPage {
     }
 
     showError(message) {
-        // Hide progress elements
-        document.querySelector('.progress-container').style.display = 'none';
-        
-        // Show error state
+        console.error('ProcessPage Error:', message);
+
+        // Get elements
+        const progressContainer = document.querySelector('.progress-container');
         const errorState = document.getElementById('error-state');
         const errorDetails = document.getElementById('error-details');
-        
+
+        // Hide progress elements
+        if (progressContainer) {
+            progressContainer.style.display = 'none';
+        }
+
+        // Show error state
         if (errorState && errorDetails) {
             errorDetails.textContent = message;
             errorState.classList.remove('hidden');
+            errorState.style.display = 'block'; // Ensure it's visible
+            console.log('Error state displayed:', message);
+        } else {
+            console.error('Error state elements not found!');
+            // Fallback: show alert if error elements missing
+            alert('Error: ' + message);
         }
     }
 }
-
-// Add process page specific styles
-const processPageStyles = `
-<style>
-/* Process Page Specific Styles */
-.process-page {
-    min-height: calc(100vh - 200px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.progress-container {
-    max-width: 600px;
-    width: 100%;
-    text-align: center;
-}
-
-.progress-header {
-    margin-bottom: var(--space-2xl);
-}
-
-.progress-title {
-    font-size: var(--text-2xl);
-    font-weight: 700;
-    margin-bottom: var(--space-sm);
-}
-
-.progress-subtitle {
-    font-size: var(--text-lg);
-    color: var(--color-text-secondary);
-}
-
-/* Circular Progress */
-.circular-progress {
-    width: 200px;
-    height: 200px;
-    margin: 0 auto var(--space-xl);
-    position: relative;
-}
-
-.circular-progress svg {
-    width: 100%;
-    height: 100%;
-    transform: rotate(-90deg);
-}
-
-.progress-bg {
-    fill: none;
-    stroke: var(--color-surface-overlay);
-    stroke-width: 8;
-}
-
-.progress-fill {
-    fill: none;
-    stroke: url(#progressGradient);
-    stroke-width: 8;
-    stroke-linecap: round;
-    transition: stroke-dashoffset var(--transition-slow);
-}
-
-.progress-text {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: var(--text-3xl);
-    font-weight: 700;
-}
-
-.progress-message {
-    font-size: var(--text-base);
-    color: var(--color-text-secondary);
-    margin-bottom: var(--space-xl);
-    min-height: 24px;
-}
-
-/* Progress Steps */
-.progress-steps {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-md);
-    text-align: left;
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-.progress-step {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-md);
-    background: var(--color-surface-overlay);
-    border-radius: var(--radius-lg);
-    transition: all var(--transition-base);
-}
-
-.step-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    transition: all var(--transition-base);
-}
-
-.progress-step.active .step-icon {
-    background: var(--color-primary);
-    color: white;
-    animation: pulse 2s infinite;
-}
-
-.progress-step.completed .step-icon {
-    background: var(--color-success);
-    color: white;
-}
-
-.step-content {
-    flex: 1;
-}
-
-.step-title {
-    font-weight: 500;
-    font-size: var(--text-base);
-}
-
-.step-description {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-}
-
-/* Error State */
-.error-state {
-    text-align: center;
-    padding: var(--space-2xl);
-}
-
-.error-icon {
-    margin-bottom: var(--space-lg);
-}
-
-.error-icon svg {
-    width: 64px;
-    height: 64px;
-    color: var(--color-error);
-}
-
-.error-state h3 {
-    font-size: var(--text-xl);
-    font-weight: 600;
-    margin-bottom: var(--space-sm);
-}
-
-.error-state p {
-    color: var(--color-text-secondary);
-    margin-bottom: var(--space-xl);
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .circular-progress {
-        width: 160px;
-        height: 160px;
-    }
-    
-    .progress-text {
-        font-size: var(--text-2xl);
-    }
-}
-</style>
-`;
-
-// Add styles to document
-document.head.insertAdjacentHTML('beforeend', processPageStyles);
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {

@@ -149,7 +149,7 @@ class ViralClipGenerator:
                 
                 # Find the downloaded file
                 for file in os.listdir(output_path):
-                    if video_id in file or any(word in file for word in video_title.split()[:3]):
+                    if (video_id in file or any(word in file for word in video_title.split()[:3])) and file.endswith(('.mp4', '.webm', '.mkv')):
                         file_path = os.path.join(output_path, file)
                         file_size = os.path.getsize(file_path) / (1024*1024)
                         print(f"✅ Downloaded: {file} ({file_size:.1f} MB)")
@@ -162,7 +162,6 @@ class ViralClipGenerator:
         except Exception as e:
             print(f"❌ Error downloading video: {e}")
             return None, None, None
-
     def detect_speakers_from_segment(self, video_path, start_time, duration):
         """Detect speakers from a specific segment of the video with smart sampling"""
         try:
@@ -872,7 +871,7 @@ class ViralClipGenerator:
                         **{'b:v': '3M', 'b:a': '128k', 'preset': 'medium', 'crf': '23'}
                     )
                     .overwrite_output()
-                    .run(quiet=True)
+                    .run(quiet=False, capture_stderr=True)
                 )
             else:
                 # Use center crop as fallback
@@ -887,7 +886,7 @@ class ViralClipGenerator:
                         **{'b:v': '3M', 'b:a': '128k', 'preset': 'medium', 'crf': '23'}
                     )
                     .overwrite_output()
-                    .run(quiet=True)
+                    .run(quiet=False, capture_stderr=True)
                 )
             
             if os.path.exists(output_path):
@@ -897,41 +896,14 @@ class ViralClipGenerator:
             
             return False
             
+        except ffmpeg.Error as e:
+            print(f"❌ FFmpeg Error creating smart clip: {e}")
+            if e.stderr:
+                print(f"🔴 Stderr: {e.stderr.decode('utf8')}")
+            raise e
         except Exception as e:
             print(f"❌ Error creating smart clip: {e}")
-            return False
-
-    def create_basic_viral_clip(self, video_path, start_time, duration, output_path):
-        """Create a basic viral clip with perfect formatting"""
-        try:
-            print(f"🎬 Creating basic viral clip: {start_time}s for {duration}s")
-            
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            
-            (
-                ffmpeg
-                .input(video_path, ss=start_time, t=duration)
-                .output(
-                    output_path,
-                    vcodec='libx264',
-                    acodec='aac',
-                    vf='scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920',
-                    **{'b:v': '3M', 'b:a': '128k', 'preset': 'medium', 'crf': '23'}
-                )
-                .overwrite_output()
-                .run(quiet=True)
-            )
-            
-            if os.path.exists(output_path):
-                file_size = os.path.getsize(output_path) / (1024*1024)
-                print(f"✅ Created basic viral clip: {output_path} ({file_size:.1f} MB)")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            print(f"❌ Error creating basic clip: {e}")
-            return False
+            raise e
 
     def generate_viral_clip(self, video_url, start_time=None, duration=30):
         """
