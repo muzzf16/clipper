@@ -21,7 +21,7 @@ import uuid
 import threading
 import time
 from datetime import datetime, timedelta
-import psycopg2.extras
+# MongoDB is now used instead of PostgreSQL
 
 # Import our modules
 from src.core.auto_peak_viral_clipper import AutoPeakViralClipper
@@ -54,12 +54,8 @@ app.config['TEMP_UPLOAD_FOLDER'] = 'temp_uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'mp4', 'mov', 'avi', 'mkv', 'webm'}
 app.config['CHUNK_SIZE'] = 10 * 1024 * 1024  # 10MB chunks
 
-# Database configuration
-app.config['DB_HOST'] = os.getenv('DB_HOST', 'localhost')
-app.config['DB_PORT'] = os.getenv('DB_PORT', 5432)
-app.config['DB_NAME'] = os.getenv('DB_NAME', 'clippy')
-app.config['DB_USER'] = os.getenv('DB_USER', 'clippy_user')
-app.config['DB_PASSWORD'] = os.getenv('DB_PASSWORD', 'clippy_password')
+# Database configuration - MongoDB
+app.config['MONGODB_URI'] = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/clippy')
 
 # Initialize database
 init_db(app)
@@ -118,68 +114,78 @@ def get_or_create_session_id():
 
 def save_anonymous_clip(job):
     """Save anonymous clip to database"""
-    conn = get_db_connection()
-    cur = conn.cursor()
+    from database import update_one
+    from datetime import datetime, timedelta
     
     try:
-        cur.execute('''
-            INSERT INTO anonymous_clips 
-            (session_id, job_id, video_url, clip_path, clip_data)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (job_id) DO UPDATE SET
-                clip_path = EXCLUDED.clip_path,
-                clip_data = EXCLUDED.clip_data
-        ''', (
-            job.session_id,
-            job.job_id,
-            job.url,
-            job.clip_data.get('path') if job.clip_data else None,
-            json.dumps(job.clip_data) if job.clip_data else None
-        ))
-        conn.commit()
-    finally:
-        cur.close()
-        conn.close()
+        # Upsert anonymous clip document
+        update_one(
+            'anonymous_clips',
+            {'job_id': job.job_id},
+            {
+                '$set': {
+                    'session_id': job.session_id,
+                    'job_id': job.job_id,
+                    'video_url': job.url,
+                    'clip_path': job.clip_data.get('path') if job.clip_data else None,
+                    'clip_data': job.clip_data,
+                    'updated_at': datetime.utcnow(),
+                    'expires_at': datetime.utcnow() + timedelta(days=7)
+                },
+                '$setOnInsert': {
+                    'created_at': datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to save anonymous clip: {e}")
 
 
 def get_anonymous_clips(session_id):
     """Get anonymous clips for a session"""
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    from database import find_many
+    from datetime import datetime
     
     try:
-        cur.execute('''
-            SELECT * FROM anonymous_clips 
-            WHERE session_id = %s 
-            AND expires_at > CURRENT_TIMESTAMP
-            ORDER BY created_at DESC
-            LIMIT 10
-        ''', (session_id,))
-        
-        return cur.fetchall()
-    finally:
-        cur.close()
-        conn.close()
+        clips = find_many(
+            'anonymous_clips',
+            {
+                'session_id': session_id,
+                'expires_at': {'$gt': datetime.utcnow()}
+            },
+            limit=10,
+            sort=[('created_at', -1)]
+        )
+        return clips
+    except Exception as e:
+        logger.error(f"Failed to get anonymous clips: {e}")
+        return []
 
 
 def convert_anonymous_clips_to_user(session_id, user_id):
     """Convert anonymous clips to user clips when they sign in"""
-    conn = get_db_connection()
-    cur = conn.cursor()
+    from database import update_many
+    from datetime import datetime
     
     try:
-        cur.execute('''
-            UPDATE anonymous_clips 
-            SET converted_to_user_id = %s, converted_at = CURRENT_TIMESTAMP
-            WHERE session_id = %s 
-            AND converted_to_user_id IS NULL
-        ''', (user_id, session_id))
-        
-        conn.commit()
-        return cur.rowcount
-    finally:
-        cur.close()
-        conn.close()
+        result = update_many(
+            'anonymous_clips',
+            {
+                'session_id': session_id,
+                'converted_to_user_id': None
+            },
+            {
+                '$set': {
+                    'converted_to_user_id': user_id,
+                    'converted_at': datetime.utcnow()
+                }
+            }
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Failed to convert anonymous clips: {e}")
+        return 0
 
 
 def update_job_progress(job_id, status, progress, message):
