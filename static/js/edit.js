@@ -6,7 +6,7 @@ class EditPage {
         this.clipData = JSON.parse(document.getElementById('clip-data').value || '{}');
         this.socket = null;
         this.hasUnsavedChanges = false;
-        
+
         // Caption settings
         this.captionPosition = 'bottom';
         this.speakerColors = {
@@ -14,7 +14,7 @@ class EditPage {
             2: '#00BFFF', // Blue  
             3: '#00FF88'  // Green
         };
-        
+
         // New speaker styling settings
         this.speakerSettings = {
             1: {
@@ -39,33 +39,33 @@ class EditPage {
                 fontSize: 22
             }
         };
-        
+
         // Current active speaker tab
         this.activeSpeaker = 1;
-        
+
         // Color picker state
         this.colorPickerTarget = null;
-        
+
         // End Screen settings
         this.endScreenEnabled = false;
         this.endScreenText = 'SUBSCRIBE';
         this.endScreenDuration = 3.0;
         this.endScreenPosition = 'middle';
         this.endScreenColor = '#FF4500';
-        
+
         console.log('EditPage initialized with:', {
             jobId: this.jobId,
             clipData: this.clipData
         });
-        
+
         if (!this.jobId) {
             window.location.href = '/';
             return;
         }
-        
+
         // Debug: Check job status
         this.debugJob();
-        
+
         this.initializeSocket();
         this.loadVideo();
         this.loadCaptions();
@@ -106,12 +106,12 @@ class EditPage {
     loadVideo() {
         const video = document.getElementById('clip-video');
         const videoSource = document.getElementById('video-source');
-        
+
         console.log('Loading video, clipData:', this.clipData);
-        
+
         // Try different path formats
         let videoPath = null;
-        
+
         if (this.clipData.path) {
             videoPath = this.clipData.path;
         } else if (this.clipData.video_path) {
@@ -119,15 +119,15 @@ class EditPage {
         } else if (this.clipData.clip_path) {
             videoPath = this.clipData.clip_path;
         }
-        
+
         if (videoPath) {
-            // Extract just the filename
-            const filename = videoPath.split('/').pop();
+            // Extract just the filename (handle both / and \ for Windows compatibility)
+            const filename = videoPath.split(/[/\\]/).pop();
             const videoUrl = `/clips/${filename}`;
             console.log('Setting video source to:', videoUrl);
             videoSource.src = videoUrl;
             video.load();
-            
+
             // Add error handler
             video.addEventListener('error', (e) => {
                 console.error('Video load error:', e);
@@ -135,7 +135,7 @@ class EditPage {
                 // Try fallback: look for the video without path
                 this.tryFallbackVideo();
             });
-            
+
             video.addEventListener('loadeddata', () => {
                 console.log('Video loaded successfully');
             });
@@ -148,13 +148,13 @@ class EditPage {
         // Load clip details
         this.displayClipDetails();
     }
-    
+
     tryFallbackVideo() {
         console.log('Trying fallback video loading...');
         // If we have any clip info, try to construct a path
         const video = document.getElementById('clip-video');
         const videoSource = document.getElementById('video-source');
-        
+
         // Common patterns for video files
         // First, try to get a list of available clips
         this.getAvailableClips().then(clips => {
@@ -162,50 +162,50 @@ class EditPage {
                 // Try the most recent clip first
                 const mostRecent = clips[clips.length - 1];
                 console.log('Trying most recent clip:', mostRecent);
-                
+
                 videoSource.src = `/clips/${mostRecent}`;
                 video.load();
-                
+
                 video.onloadeddata = () => {
                     console.log('Loaded most recent clip:', mostRecent);
                 };
-                
+
                 video.onerror = () => {
                     console.error('Failed to load most recent clip');
                 };
             }
         });
-        
+
         const possiblePatterns = [
             `auto_peak_clip_${this.clipData.video_id}_${this.clipData.optimal_timestamp}s.mp4`,
             `auto_peak_clip__${this.clipData.optimal_timestamp}s.mp4`,
             `clip_${this.jobId}.mp4`
         ];
-        
+
         let attemptIndex = 0;
-        
+
         const tryNextPattern = () => {
             if (attemptIndex >= possiblePatterns.length) {
                 console.error('All fallback patterns failed');
                 return;
             }
-            
+
             const testUrl = `/clips/${possiblePatterns[attemptIndex]}`;
             console.log('Trying fallback URL:', testUrl);
-            
+
             videoSource.src = testUrl;
             video.load();
-            
+
             video.onerror = () => {
                 attemptIndex++;
                 tryNextPattern();
             };
-            
+
             video.onloadeddata = () => {
                 console.log('Fallback video loaded successfully:', testUrl);
             };
         };
-        
+
         tryNextPattern();
     }
 
@@ -221,15 +221,15 @@ class EditPage {
         }
         return [];
     }
-    
+
     displayClipDetails() {
         const detailsContainer = document.getElementById('clip-details');
-        
+
         const startTime = this.clipData.optimal_timestamp || 0;
         const endTime = startTime + (this.clipData.duration || 30);
         const startMMSS = window.clippyBase.formatSecondsToMMSS(startTime);
         const endMMSS = window.clippyBase.formatSecondsToMMSS(endTime);
-        
+
         detailsContainer.innerHTML = `
             <div class="info-item">
                 <div class="info-label">Timing</div>
@@ -253,9 +253,9 @@ class EditPage {
     loadCaptions() {
         const captionsEditor = document.getElementById('captions-editor');
         let captions = this.clipData.captions || [];
-        
+
         console.log('Loading captions:', captions);
-        
+
         // If no captions but we have a subtitle file, try to load them
         if (captions.length === 0 && this.clipData.subtitle_file) {
             console.log('No captions in data, but subtitle file exists:', this.clipData.subtitle_file);
@@ -270,7 +270,7 @@ class EditPage {
             `;
             return;
         }
-        
+
         if (captions.length === 0) {
             captionsEditor.innerHTML = '<p class="no-captions">No captions available</p>';
             return;
@@ -281,7 +281,7 @@ class EditPage {
             const speakerNum = this.getSpeakerNumber(caption.speaker);
             const speakerClass = `speaker-${speakerNum}`;
             const speakerColor = this.speakerColors[speakerNum];
-            
+
             html += `
                 <div class="caption-item" data-index="${index}">
                     <div class="caption-header">
@@ -302,7 +302,7 @@ class EditPage {
         });
 
         captionsEditor.innerHTML = html;
-        
+
         // Add event listeners to new elements
         this.attachCaptionListeners();
     }
@@ -315,7 +315,7 @@ class EditPage {
                 this.hasUnsavedChanges = true;
             });
         });
-        
+
         // Text inputs
         document.querySelectorAll('.caption-text-input').forEach(textarea => {
             textarea.addEventListener('input', (e) => {
@@ -324,7 +324,7 @@ class EditPage {
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
             });
-            
+
             // Initial resize
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
@@ -335,7 +335,7 @@ class EditPage {
         // Update preview with current speaker settings
         this.updateCaptionPreview();
     }
-    
+
     initializeCaptionStylingControls() {
         // Speaker tabs
         document.querySelectorAll('.speaker-tab').forEach(tab => {
@@ -344,7 +344,7 @@ class EditPage {
                 this.switchSpeakerTab(speaker);
             });
         });
-        
+
         // Font selectors
         document.querySelectorAll('.font-select').forEach(select => {
             select.addEventListener('change', (e) => {
@@ -356,7 +356,7 @@ class EditPage {
                 }
             });
         });
-        
+
         // Color picker buttons
         document.querySelectorAll('.color-picker-button').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -366,47 +366,47 @@ class EditPage {
                 this.openColorPicker(speaker, colorType, button);
             });
         });
-        
+
         // Font size sliders
         document.querySelectorAll('.font-size-slider').forEach(slider => {
             slider.addEventListener('input', (e) => {
                 const speaker = parseInt(e.target.dataset.speaker);
                 const value = parseInt(e.target.value);
                 this.speakerSettings[speaker].fontSize = value;
-                
+
                 // Update value display
                 const valueSpan = e.target.nextElementSibling;
                 if (valueSpan) {
                     valueSpan.textContent = `${value}px`;
                 }
-                
+
                 this.hasUnsavedChanges = true;
                 if (speaker === this.activeSpeaker) {
                     this.updateCaptionPreview();
                 }
             });
         });
-        
+
         // Outline thickness sliders
         document.querySelectorAll('.outline-thickness-slider').forEach(slider => {
             slider.addEventListener('input', (e) => {
                 const speaker = parseInt(e.target.dataset.speaker);
                 const value = parseFloat(e.target.value);
                 this.speakerSettings[speaker].outlineThickness = value;
-                
+
                 // Update value display
                 const valueSpan = e.target.nextElementSibling;
                 if (valueSpan) {
                     valueSpan.textContent = `${value}px`;
                 }
-                
+
                 this.hasUnsavedChanges = true;
                 if (speaker === this.activeSpeaker) {
                     this.updateCaptionPreview();
                 }
             });
         });
-        
+
         // Apply to all buttons
         document.querySelectorAll('.apply-all-btn').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -414,35 +414,35 @@ class EditPage {
                 this.applySettingsToAllSpeakers(sourceSpeaker);
             });
         });
-        
+
         // Initialize color picker
         this.initializeColorPicker();
     }
-    
+
     switchSpeakerTab(speaker) {
         this.activeSpeaker = speaker;
-        
+
         // Update tab styles
         document.querySelectorAll('.speaker-tab').forEach(tab => {
             tab.classList.toggle('active', parseInt(tab.dataset.speaker) === speaker);
         });
-        
+
         // Show/hide panels
         document.querySelectorAll('.speaker-settings-panel').forEach(panel => {
             panel.classList.toggle('active', parseInt(panel.dataset.speaker) === speaker);
         });
-        
+
         // Update preview
         this.updateCaptionPreview();
     }
-    
+
     updateCaptionPreview() {
         const preview = document.getElementById('caption-preview');
         if (!preview) return;
-        
+
         const settings = this.speakerSettings[this.activeSpeaker];
         const previewText = preview.querySelector('.preview-text');
-        
+
         if (previewText) {
             previewText.style.fontFamily = settings.font;
             previewText.style.fontSize = `${settings.fontSize}px`;
@@ -452,17 +452,17 @@ class EditPage {
             previewText.style.paintOrder = 'stroke fill';
         }
     }
-    
+
     initializeColorPicker() {
         const popup = document.getElementById('color-picker-popup');
         const closeBtn = popup.querySelector('.color-picker-close');
         const header = document.getElementById('color-picker-header');
-        
+
         // Close button
         closeBtn.addEventListener('click', () => {
             this.closeColorPicker();
         });
-        
+
         // Color cells
         document.querySelectorAll('.color-cell').forEach(cell => {
             cell.addEventListener('click', (e) => {
@@ -471,10 +471,10 @@ class EditPage {
                 this.selectColor(color);
             });
         });
-        
+
         // Make draggable
         this.makeDraggable(popup, header);
-        
+
         // Close on outside click
         popup.addEventListener('click', (e) => {
             if (e.target === popup) {
@@ -482,14 +482,14 @@ class EditPage {
             }
         });
     }
-    
+
     selectColor(color) {
         // Set selected color FIRST (ensure uppercase)
         this.selectedColor = color.toUpperCase();
-        
+
         // Update preview
         this.updateColorPreview(this.selectedColor);
-        
+
         // Highlight selected color
         document.querySelectorAll('.color-cell').forEach(cell => {
             cell.classList.remove('selected');
@@ -498,15 +498,15 @@ class EditPage {
                 cell.classList.add('selected');
             }
         });
-        
+
         // Update selected color display
         document.getElementById('selected-color-value').textContent = this.selectedColor;
         document.getElementById('selected-color-preview').style.backgroundColor = this.selectedColor;
-        
+
         // Apply immediately
         this.applyColorFromPicker();
     }
-    
+
     makeDraggable(element, handle) {
         let isDragging = false;
         let currentX;
@@ -515,44 +515,44 @@ class EditPage {
         let initialY;
         let xOffset = 0;
         let yOffset = 0;
-        
+
         handle.style.cursor = 'move';
-        
+
         handle.addEventListener('mousedown', dragStart);
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', dragEnd);
-        
+
         function dragStart(e) {
             initialX = e.clientX - xOffset;
             initialY = e.clientY - yOffset;
-            
+
             if (e.target === handle || handle.contains(e.target)) {
                 isDragging = true;
                 element.style.transition = 'none';
             }
         }
-        
+
         function drag(e) {
             if (isDragging) {
                 e.preventDefault();
                 currentX = e.clientX - initialX;
                 currentY = e.clientY - initialY;
-                
+
                 xOffset = currentX;
                 yOffset = currentY;
-                
+
                 // Keep within viewport
                 const rect = element.getBoundingClientRect();
                 const maxX = window.innerWidth - rect.width;
                 const maxY = window.innerHeight - rect.height;
-                
+
                 currentX = Math.max(0, Math.min(currentX, maxX));
                 currentY = Math.max(0, Math.min(currentY, maxY));
-                
+
                 element.style.transform = `translate(${currentX}px, ${currentY}px)`;
             }
         }
-        
+
         function dragEnd(e) {
             initialX = currentX;
             initialY = currentY;
@@ -561,20 +561,20 @@ class EditPage {
         }
     }
 
-    
+
     openColorPicker(speaker, colorType, button) {
         const popup = document.getElementById('color-picker-popup');
-        
+
         // Store current target
         this.colorPickerTarget = { speaker, colorType, button };
-        
+
         // Set current color
-        const currentColor = colorType === 'fill' 
-            ? this.speakerSettings[speaker].fillColor 
+        const currentColor = colorType === 'fill'
+            ? this.speakerSettings[speaker].fillColor
             : this.speakerSettings[speaker].outlineColor;
-        
+
         this.selectedColor = currentColor.toUpperCase();
-        
+
         // Highlight the current color in the grid
         document.querySelectorAll('.color-cell').forEach(cell => {
             cell.classList.remove('selected');
@@ -582,38 +582,38 @@ class EditPage {
                 cell.classList.add('selected');
             }
         });
-        
+
         // Update selected color display
         document.getElementById('selected-color-value').textContent = this.selectedColor;
         document.getElementById('selected-color-preview').style.backgroundColor = this.selectedColor;
-        
+
         // Position popup near button (fixed positioning)
         const rect = button.getBoundingClientRect();
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
         const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-        
+
         popup.style.position = 'fixed';
         popup.style.left = `${Math.min(rect.left, window.innerWidth - 350)}px`;
         popup.style.top = `${Math.min(rect.bottom + 10, window.innerHeight - 400)}px`;
         popup.style.transform = 'none'; // Reset any dragging transform
-        
+
         // Show popup
         popup.classList.remove('hidden');
     }
-    
+
     closeColorPicker() {
         const popup = document.getElementById('color-picker-popup');
         popup.classList.add('hidden');
         this.colorPickerTarget = null;
     }
-    
+
     updateColorPreview(color) {
         const preview = document.getElementById('selected-color-preview');
         if (preview) {
             preview.style.backgroundColor = color;
         }
     }
-    
+
     applyColorFromPicker() {
         if (!this.colorPickerTarget || !this.selectedColor) {
             console.warn('applyColorFromPicker: Missing target or color', {
@@ -622,12 +622,12 @@ class EditPage {
             });
             return;
         }
-        
+
         const { speaker, colorType, button } = this.colorPickerTarget;
         const color = this.selectedColor;
-        
+
         console.log('Applying color:', { speaker, colorType, color });
-        
+
         // Update settings
         if (colorType === 'fill') {
             this.speakerSettings[speaker].fillColor = color;
@@ -636,16 +636,16 @@ class EditPage {
         } else {
             this.speakerSettings[speaker].outlineColor = color;
         }
-        
+
         // Update button
         button.style.backgroundColor = color;
         button.querySelector('.color-value').textContent = color;
-        
+
         // Update preview if current speaker
         if (speaker === this.activeSpeaker) {
             this.updateCaptionPreview();
         }
-        
+
         // Update speaker tab color if fill color
         if (colorType === 'fill') {
             const tab = document.querySelector(`.speaker-tab[data-speaker="${speaker}"]`);
@@ -653,14 +653,14 @@ class EditPage {
                 tab.style.setProperty('--tab-color', color);
             }
         }
-        
+
         this.hasUnsavedChanges = true;
         // Don't close immediately - let user pick multiple colors if needed
     }
-    
+
     applySettingsToAllSpeakers(sourceSpeaker) {
         const sourceSettings = this.speakerSettings[sourceSpeaker];
-        
+
         // Copy settings to all speakers
         for (let speaker = 1; speaker <= 3; speaker++) {
             if (speaker !== sourceSpeaker) {
@@ -670,24 +670,24 @@ class EditPage {
                     ...sourceSettings,
                     fillColor: originalFillColor
                 };
-                
+
                 // Update UI for this speaker
                 const fontSelect = document.getElementById(`speaker-${speaker}-font`);
                 if (fontSelect) fontSelect.value = sourceSettings.font;
-                
+
                 const fontSizeSlider = document.getElementById(`speaker-${speaker}-font-size`);
                 if (fontSizeSlider) {
                     fontSizeSlider.value = sourceSettings.fontSize;
                     const sizeSpan = fontSizeSlider.nextElementSibling;
                     if (sizeSpan) sizeSpan.textContent = `${sourceSettings.fontSize}px`;
                 }
-                
+
                 const outlineColorBtn = document.querySelector(`.color-picker-button[data-speaker="${speaker}"][data-color-type="outline"]`);
                 if (outlineColorBtn) {
                     outlineColorBtn.style.backgroundColor = sourceSettings.outlineColor;
                     outlineColorBtn.querySelector('.color-value').textContent = sourceSettings.outlineColor;
                 }
-                
+
                 const thicknessSlider = document.getElementById(`speaker-${speaker}-outline-thickness`);
                 if (thicknessSlider) {
                     thicknessSlider.value = sourceSettings.outlineThickness;
@@ -696,11 +696,11 @@ class EditPage {
                 }
             }
         }
-        
+
         this.hasUnsavedChanges = true;
         window.clippyBase.showSuccess('Settings applied to all speakers!');
     }
-    
+
     initializeEventListeners() {
         // Toggle captions button
         document.getElementById('toggle-captions')?.addEventListener('click', () => {
@@ -716,19 +716,19 @@ class EditPage {
         document.getElementById('continue-btn').addEventListener('click', () => {
             this.continueToUpload();
         });
-        
+
         // Caption position selector
         document.getElementById('caption-position')?.addEventListener('change', (e) => {
             this.captionPosition = e.target.value;
             this.hasUnsavedChanges = true;
         });
-        
+
         // Initialize new caption styling controls
         this.initializeCaptionStylingControls();
-        
+
         // End Screen controls
         this.initializeEndScreenControls();
-        
+
         // Warn about unsaved changes
         window.addEventListener('beforeunload', (e) => {
             if (this.hasUnsavedChanges) {
@@ -737,7 +737,7 @@ class EditPage {
             }
         });
     }
-    
+
     initializeEndScreenControls() {
         const enableCheckbox = document.getElementById('end-screen-enabled');
         const settingsDiv = document.getElementById('end-screen-settings');
@@ -746,33 +746,33 @@ class EditPage {
         const textArea = document.getElementById('end-screen-text');
         const positionSelect = document.getElementById('end-screen-position');
         const colorSelect = document.getElementById('end-screen-color');
-        
+
         // Enable/disable toggle
         enableCheckbox?.addEventListener('change', (e) => {
             this.endScreenEnabled = e.target.checked;
             settingsDiv.classList.toggle('hidden', !this.endScreenEnabled);
             this.hasUnsavedChanges = true;
         });
-        
+
         // Duration slider
         durationSlider?.addEventListener('input', (e) => {
             this.endScreenDuration = parseFloat(e.target.value);
             durationValue.textContent = `${this.endScreenDuration.toFixed(1)}s`;
             this.hasUnsavedChanges = true;
         });
-        
+
         // Text input
         textArea?.addEventListener('input', (e) => {
             this.endScreenText = e.target.value;
             this.hasUnsavedChanges = true;
         });
-        
+
         // Position select
         positionSelect?.addEventListener('change', (e) => {
             this.endScreenPosition = e.target.value;
             this.hasUnsavedChanges = true;
         });
-        
+
         // Color select
         colorSelect?.addEventListener('change', (e) => {
             this.endScreenColor = e.target.value;
@@ -780,7 +780,7 @@ class EditPage {
             colorSelect.setAttribute('value', e.target.value);
             this.hasUnsavedChanges = true;
         });
-        
+
         // Initialize color preview
         colorSelect?.setAttribute('value', this.endScreenColor);
     }
@@ -794,17 +794,17 @@ class EditPage {
     handleSpeakerChange(event) {
         const select = event.target;
         const newSpeakerNum = parseInt(select.value);
-        
+
         // Update visual style with custom color
         const color = this.speakerColors[newSpeakerNum];
         select.className = `speaker-selector speaker-${newSpeakerNum}`;
         select.style.borderColor = color;
         select.style.color = color;
     }
-    
+
     updateSpeakerColor(speaker, color) {
         this.speakerColors[speaker] = color;
-        
+
         // Update all speaker selectors with this speaker number
         document.querySelectorAll(`.speaker-selector`).forEach(select => {
             if (parseInt(select.value) === speaker) {
@@ -812,7 +812,7 @@ class EditPage {
                 select.style.color = color;
             }
         });
-        
+
         // Update the visual preview of the color dropdown
         const colorSelect = document.querySelector(`#speaker-${speaker}-color`);
         if (colorSelect) {
@@ -827,7 +827,7 @@ class EditPage {
         // Implementation depends on how captions are rendered
         const video = document.getElementById('clip-video');
         const track = video.querySelector('track');
-        
+
         if (track) {
             track.mode = track.mode === 'showing' ? 'hidden' : 'showing';
         }
@@ -845,7 +845,7 @@ class EditPage {
             const index = parseInt(item.dataset.index);
             const textInput = item.querySelector('.caption-text-input');
             const speakerSelect = item.querySelector('.speaker-selector');
-            
+
             return {
                 index: index,
                 text: textInput.value,
@@ -911,11 +911,11 @@ class EditPage {
     handleRegenerationUpdate(data) {
         const progressFill = document.querySelector('.update-progress-fill');
         const progressText = document.querySelector('.update-text');
-        
+
         if (progressFill) {
             progressFill.style.width = `${data.progress}%`;
         }
-        
+
         if (progressText) {
             progressText.textContent = data.message;
         }
@@ -924,7 +924,7 @@ class EditPage {
     handleRegenerationComplete(data) {
         this.hideUpdateProgress();
         window.clippyBase.showSuccess('Video updated successfully!');
-        
+
         // Refresh video
         this.refreshVideo();
     }
@@ -938,17 +938,17 @@ class EditPage {
         try {
             const response = await fetch(`/api/refresh_video/${this.jobId}`);
             const result = await response.json();
-            
+
             if (response.ok) {
                 // Update clip data
                 this.clipData = result.clip_data;
-                
+
                 // Reload video with cache buster
                 const video = document.getElementById('clip-video');
                 const videoSource = document.getElementById('video-source');
                 videoSource.src = result.video_url;
                 video.load();
-                
+
                 // Reload captions
                 if (result.captions) {
                     this.clipData.captions = result.captions;
@@ -1019,18 +1019,18 @@ class EditPage {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(authPrompt);
-        
+
         // Add event listeners
         document.getElementById('auth-prompt-signin').addEventListener('click', () => {
             window.clippyBase.signInWithGoogle();
         });
-        
+
         document.getElementById('auth-prompt-cancel').addEventListener('click', () => {
             authPrompt.remove();
         });
-        
+
         // Close on background click
         authPrompt.addEventListener('click', (e) => {
             if (e.target === authPrompt) {
@@ -1038,13 +1038,13 @@ class EditPage {
             }
         });
     }
-    
+
     async debugJob() {
         try {
             const response = await fetch(`/api/debug/job/${this.jobId}`);
             const data = await response.json();
             console.log('Job debug info:', data);
-            
+
             // Log specific important fields
             if (data.clip_data_keys) {
                 console.log('Clip data keys:', data.clip_data_keys);
@@ -1055,11 +1055,11 @@ class EditPage {
             if (data.error) {
                 console.error('Job error:', data.error);
             }
-            
+
             // If no clip data, try to refresh
             if (!data.clip_data_keys || data.clip_data_keys.length === 0) {
                 console.warn('No clip data found, attempting to fix...');
-                
+
                 // Check if we have reconstructed data
                 if (data.reconstructed_data) {
                     console.log('Found reconstructed data:', data.reconstructed_data);
@@ -1072,7 +1072,7 @@ class EditPage {
             console.error('Debug job error:', error);
         }
     }
-    
+
     async fixJobData() {
         console.log('Attempting to fix job data...');
         try {
@@ -1082,18 +1082,18 @@ class EditPage {
                     'Content-Type': 'application/json'
                 }
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success && data.clip_data) {
                 console.log('Job data fixed:', data.clip_data);
                 this.clipData = data.clip_data;
-                
+
                 // Reload everything
                 this.loadVideo();
                 this.loadCaptions();
                 this.displayClipDetails();
-                
+
                 window.clippyBase.showSuccess('Clip data recovered successfully');
             } else {
                 console.error('Failed to fix job data:', data);
@@ -1103,16 +1103,16 @@ class EditPage {
             console.error('Fix job data error:', error);
         }
     }
-    
+
     async refreshVideoData() {
         try {
             const response = await fetch(`/api/refresh_video/${this.jobId}`);
             const data = await response.json();
-            
+
             if (data.status === 'success' && data.clip_data) {
                 console.log('Refreshed clip data:', data.clip_data);
                 this.clipData = data.clip_data;
-                
+
                 // Reload video and captions
                 this.loadVideo();
                 this.loadCaptions();
@@ -1123,13 +1123,13 @@ class EditPage {
             console.error('Refresh video data error:', error);
         }
     }
-    
+
     async reloadCaptions() {
         console.log('Reloading captions...');
         try {
             const response = await fetch(`/api/refresh_video/${this.jobId}`);
             const data = await response.json();
-            
+
             if (data.captions && data.captions.length > 0) {
                 this.clipData.captions = data.captions;
                 this.loadCaptions();

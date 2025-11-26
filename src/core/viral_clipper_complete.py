@@ -22,6 +22,8 @@ import pickle
 import time
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
+import whisper
+import torch
 
 @dataclass
 class Speaker:
@@ -136,6 +138,7 @@ class ViralClipGenerator:
         ydl_opts = {
             'format': 'best[height<=1080]',
             'outtmpl': os.path.join(output_path, '%(title)s.%(ext)s'),
+            'restrictfilenames': True,  # Ensure safe filenames
         }
         
         try:
@@ -278,6 +281,10 @@ class ViralClipGenerator:
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             cap.release()
+            
+            if width <= 0 or height <= 0:
+                print("❌ Error: Invalid video dimensions (0x0). Video file might be corrupted or unreadable.")
+                return self.create_default_speakers(1920, 1080)
             
             # Cluster faces into speakers
             speakers = self.cluster_faces_into_speakers(all_faces, width, height)
@@ -463,6 +470,11 @@ class ViralClipGenerator:
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             
             print(f"📐 Video dimensions: {width}x{height}")
+            
+            if width <= 0 or height <= 0:
+                print("❌ Error: Invalid video dimensions (0x0). Video file might be corrupted or unreadable.")
+                cap.release()
+                return self.create_default_speakers(1920, 1080)
             
             # Sample frames for face detection
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -818,13 +830,19 @@ class ViralClipGenerator:
                         f.write(f"file '{os.path.abspath(segment)}'\n")
                 
                 # Combine all segments into final viral clip
-                (
-                    ffmpeg
-                    .input(concat_file, format='concat', safe=0)
-                    .output(output_path, c='copy')
-                    .overwrite_output()
-                    .run(quiet=True)
-                )
+                try:
+                    (
+                        ffmpeg
+                        .input(concat_file, format='concat', safe=0)
+                        .output(output_path, c='copy')
+                        .overwrite_output()
+                        .run(quiet=False, capture_stderr=True)
+                    )
+                except ffmpeg.Error as e:
+                    print(f"❌ FFmpeg Error during concatenation: {e}")
+                    if e.stderr:
+                        print(f"🔴 Stderr: {e.stderr.decode('utf8')}")
+                    return False
                 
                 # Clean up temp files
                 for temp_seg in temp_segments:
@@ -834,8 +852,13 @@ class ViralClipGenerator:
                     os.remove(concat_file)
                 
                 if os.path.exists(output_path):
-                    file_size = os.path.getsize(output_path) / (1024*1024)
-                    print(f"🔥 VIRAL CLIP WITH SPEAKER SWITCHING CREATED! ({file_size:.1f} MB)")
+                    file_size_mb = os.path.getsize(output_path) / (1024*1024)
+                    
+                    if file_size_mb < 0.1:
+                        print(f"❌ Generated clip is too small ({file_size_mb:.2f} MB). Something went wrong.")
+                        return False
+                        
+                    print(f"🔥 VIRAL CLIP WITH SPEAKER SWITCHING CREATED! ({file_size_mb:.1f} MB)")
                     print(f"🎯 {len(temp_segments)} quick cuts between speakers!")
                     return True
             
@@ -890,8 +913,13 @@ class ViralClipGenerator:
                 )
             
             if os.path.exists(output_path):
-                file_size = os.path.getsize(output_path) / (1024*1024)
-                print(f"✅ Smart clip created: {output_path} ({file_size:.1f} MB)")
+                file_size_mb = os.path.getsize(output_path) / (1024*1024)
+                
+                if file_size_mb < 0.1:
+                    print(f"❌ Generated smart clip is too small ({file_size_mb:.2f} MB). Something went wrong.")
+                    return False
+                    
+                print(f"✅ Smart clip created: {output_path} ({file_size_mb:.1f} MB)")
                 return True
             
             return False
@@ -952,6 +980,10 @@ class ViralClipGenerator:
         if success:
             print("🎉 VIRAL CLIP GENERATED!")
             
+            # Step 5: Transcribe audio
+            print("📝 Step 5: Generating captions...")
+            subtitle_path, segments = self.transcribe_audio(clip_path)
+            
             clip_data = {
                 'path': clip_path,
                 'video_id': video_id,
@@ -965,13 +997,59 @@ class ViralClipGenerator:
                 'created_at': datetime.now().isoformat(),
                 'title': '',
                 'description': '',
-                'tags': []
+                'tags': [],
+                'subtitle_file': subtitle_path,
+                'captions': segments  # Store raw segments too
             }
             
             return clip_data
         else:
             print("❌ Failed to generate viral clip")
             return None
+
+    def transcribe_audio(self, video_path, output_path=None):
+        """Transcribe audio from video file using Whisper"""
+        try:
+            print("🎤 Transcribing audio...")
+            
+            # Load model
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"🚀 Loading Whisper model on {device}...")
+            model = whisper.load_model("base", device=device)
+            
+            # Transcribe
+            result = model.transcribe(video_path)
+            
+            # Save as SRT
+            if output_path:
+                srt_path = output_path
+            else:
+                srt_path = os.path.splitext(video_path)[0] + ".srt"
+                
+            with open(srt_path, "w", encoding="utf-8") as f:
+                for i, segment in enumerate(result["segments"]):
+                    start = self.format_timestamp(segment["start"])
+                    end = self.format_timestamp(segment["end"])
+                    text = segment["text"].strip()
+                    
+                    f.write(f"{i+1}\n")
+                    f.write(f"{start} --> {end}\n")
+                    f.write(f"{text}\n\n")
+            
+            print(f"✅ Transcription saved to: {srt_path}")
+            return srt_path, result["segments"]
+            
+        except Exception as e:
+            print(f"❌ Transcription failed: {e}")
+            return None, []
+
+    def format_timestamp(self, seconds):
+        """Format seconds to SRT timestamp format (HH:MM:SS,mmm)"""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        seconds = seconds % 60
+        milliseconds = int((seconds - int(seconds)) * 1000)
+        return f"{hours:02d}:{minutes:02d}:{int(seconds):02d},{milliseconds:03d}"
 
     def list_generated_clips(self, clips_dir='clips'):
         """List all generated clips for UI display"""

@@ -247,7 +247,8 @@ def process_clip_generation(job_id):
             
             # Save anonymous clip to database if anonymous
             if job.is_anonymous:
-                save_anonymous_clip(job)
+                with app.app_context():
+                    save_anonymous_clip(job)
             
             socketio.emit('clip_completed', {
                 'job_id': job_id,
@@ -371,19 +372,27 @@ def upload_page():
 @app.route('/api/auth/login')
 def auth_login():
     """Initiate OAuth login flow"""
-    # Store the current session ID to convert anonymous clips later
-    session['pre_auth_session_id'] = get_or_create_session_id()
-    
-    redirect_uri = url_for('auth_callback', _external=True)
-    authorization_url, state = oauth_manager.get_authorization_url(redirect_uri)
-    
-    # Store state in session for CSRF protection
-    session['oauth_state'] = state
-    
-    return jsonify({
-        'authorization_url': authorization_url,
-        'status': 'redirect_required'
-    })
+    try:
+        # Store the current session ID to convert anonymous clips later
+        session['pre_auth_session_id'] = get_or_create_session_id()
+        
+        redirect_uri = url_for('auth_callback', _external=True)
+        print(f"DEBUG: Generated OAuth redirect URI: {redirect_uri}")
+        authorization_url, state = oauth_manager.get_authorization_url(redirect_uri)
+        
+        # Store state in session for CSRF protection
+        session['oauth_state'] = state
+        
+        return jsonify({
+            'authorization_url': authorization_url,
+            'status': 'redirect_required'
+        })
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'status': 'error'
+        }), 500
 
 
 @app.route('/api/auth/callback')

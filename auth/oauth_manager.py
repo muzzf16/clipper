@@ -39,16 +39,38 @@ class OAuthManager:
     
     def create_flow(self, redirect_uri: str = None) -> Flow:
         """Create OAuth flow instance"""
+        # Check for environment variables first if file doesn't exist
         if not os.path.exists(self.client_secrets_file):
-            raise FileNotFoundError(
-                f"OAuth credentials file not found: {self.client_secrets_file}. "
-                "Please ensure client_secrets.json exists."
+            client_id = os.getenv('GOOGLE_CLIENT_ID')
+            client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+            
+            if client_id and client_secret:
+                # Create client config dictionary
+                client_config = {
+                    "web": {
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                        "redirect_uris": [redirect_uri] if redirect_uri else []
+                    }
+                }
+                
+                flow = Flow.from_client_config(
+                    client_config,
+                    scopes=self.OAUTH_SCOPES
+                )
+            else:
+                raise FileNotFoundError(
+                    f"OAuth credentials file not found: {self.client_secrets_file} "
+                    "and GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET environment variables are not set."
+                )
+        else:
+            flow = Flow.from_client_secrets_file(
+                self.client_secrets_file,
+                scopes=self.OAUTH_SCOPES
             )
-        
-        flow = Flow.from_client_secrets_file(
-            self.client_secrets_file,
-            scopes=self.OAUTH_SCOPES
-        )
         
         if redirect_uri:
             flow.redirect_uri = redirect_uri
@@ -288,18 +310,22 @@ class OAuthManager:
             return None
     
     def _get_client_id(self) -> str:
-        """Get client ID from secrets file"""
-        import json
-        with open(self.client_secrets_file, 'r') as f:
-            secrets = json.load(f)
-            return secrets.get('web', {}).get('client_id', '')
+        """Get client ID from secrets file or environment"""
+        if os.path.exists(self.client_secrets_file):
+            import json
+            with open(self.client_secrets_file, 'r') as f:
+                secrets = json.load(f)
+                return secrets.get('web', {}).get('client_id', '')
+        return os.getenv('GOOGLE_CLIENT_ID', '')
     
     def _get_client_secret(self) -> str:
-        """Get client secret from secrets file"""
-        import json
-        with open(self.client_secrets_file, 'r') as f:
-            secrets = json.load(f)
-            return secrets.get('web', {}).get('client_secret', '')
+        """Get client secret from secrets file or environment"""
+        if os.path.exists(self.client_secrets_file):
+            import json
+            with open(self.client_secrets_file, 'r') as f:
+                secrets = json.load(f)
+                return secrets.get('web', {}).get('client_secret', '')
+        return os.getenv('GOOGLE_CLIENT_SECRET', '')
     
     def check_user_scopes(self, user: User) -> bool:
         """Check if user has all required OAuth scopes"""
