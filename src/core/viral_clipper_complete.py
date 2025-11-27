@@ -23,7 +23,9 @@ import time
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 import whisper
+import whisper
 import torch
+from src.core.content_analyzer import ViralContentAnalyzer
 
 @dataclass
 class Speaker:
@@ -50,6 +52,9 @@ class ViralClipGenerator:
         else:
             self.youtube_service = None
         self.youtube_upload_service = None
+        
+        # Initialize AI Content Analyzer
+        self.content_analyzer = ViralContentAnalyzer(api_key)
 
     def authenticate_oauth(self):
         """Authenticate using OAuth2 for upload permissions"""
@@ -933,6 +938,47 @@ class ViralClipGenerator:
             print(f"❌ Error creating smart clip: {e}")
             raise e
 
+    def burn_captions(self, video_path, srt_path, output_path=None):
+        """🔥 BURN CAPTIONS INTO VIDEO PERMANENTLY 🔥"""
+        try:
+            print(f"🔥 Burning captions from {srt_path} into video...")
+            
+            if not output_path:
+                output_path = video_path.replace('.mp4', '_burned.mp4')
+            
+            # Escape path for FFmpeg filter
+            # Windows paths need special handling in filter strings
+            srt_path_escaped = srt_path.replace('\\', '/').replace(':', '\\:')
+            
+            # Style for viral captions (Yellow text, black outline, bottom center)
+            style = "Fontname=Arial,FontSize=16,PrimaryColour=&H0000FFFF,OutlineColour=&H00000000,BorderStyle=3,Outline=2,Shadow=0,Alignment=2,MarginV=50"
+            
+            (
+                ffmpeg
+                .input(video_path)
+                .output(
+                    output_path,
+                    vf=f"subtitles='{srt_path_escaped}':force_style='{style}'",
+                    vcodec='libx264',
+                    acodec='copy',
+                    **{'preset': 'fast', 'crf': '23'}
+                )
+                .overwrite_output()
+                .run(quiet=False, capture_stderr=True)
+            )
+            
+            print(f"✅ Captions burned successfully: {output_path}")
+            return output_path
+            
+        except ffmpeg.Error as e:
+            print(f"❌ FFmpeg Error burning captions: {e}")
+            if e.stderr:
+                print(f"🔴 Stderr: {e.stderr.decode('utf8')}")
+            return None
+        except Exception as e:
+            print(f"❌ Error burning captions: {e}")
+            return None
+
     def generate_viral_clip(self, video_url, start_time=None, duration=30):
         """
         🔥 MAIN FUNCTION: Generate a viral clip with SPEAKER SWITCHING! 🔥
@@ -948,12 +994,57 @@ class ViralClipGenerator:
         if not video_path:
             return None
         
-        # Step 2: Find optimal moment if not specified
+        # Step 2: Find optimal moment (AI or Manual)
+        ai_metadata = {}
+        
         if start_time is None:
-            # Use strategic timing for podcasts
-            fallback_times = [180, 300, 420, 600, 900]
-            start_time = random.choice(fallback_times)
-            print(f"🎯 Using strategic timing: {start_time}s")
+            print("🤖 Step 2: AI analyzing content for VIRAL moments...")
+            
+            # Transcribe first 20 mins for analysis (to save time/memory)
+            # We need a temporary audio file for this
+            try:
+                print("   Creating temp audio for analysis...")
+                temp_audio = "temp_analysis.mp3"
+                (
+                    ffmpeg
+                    .input(video_path, t=1200)  # Limit to 20 mins
+                    .output(temp_audio, acodec='mp3', ab='64k')
+                    .overwrite_output()
+                    .run(quiet=True)
+                )
+                
+                # Transcribe with Whisper
+                print("   Transcribing for AI analysis...")
+                model = whisper.load_model("base")
+                result = model.transcribe(temp_audio)
+                transcript_text = result['text']
+                
+                # Analyze with Gemini
+                print("   Asking Gemini to find the most viral clip...")
+                analysis = self.content_analyzer.analyze_transcript(transcript_text)
+                
+                if analysis and 'start_time' in analysis:
+                    start_time = analysis['start_time']
+                    # Use AI duration but cap at 60s
+                    duration = min(60, analysis.get('end_time', start_time + 30) - start_time)
+                    ai_metadata = analysis
+                    print(f"🎯 AI Selected Segment: {analysis.get('title', 'Viral Clip')}")
+                    print(f"   Reason: {analysis.get('reason')}")
+                    print(f"   Score: {analysis.get('score')}/10")
+                    print(f"   Timing: {start_time}s for {duration}s")
+                else:
+                    print("⚠️ AI analysis failed or returned no result. Falling back to random.")
+                    # Fallback
+                    fallback_times = [180, 300, 420, 600, 900]
+                    start_time = random.choice(fallback_times)
+                
+                # Cleanup
+                if os.path.exists(temp_audio):
+                    os.remove(temp_audio)
+                    
+            except Exception as e:
+                print(f"❌ Error during AI analysis: {e}")
+                start_time = 300  # Fallback
         
         print(f"🎬 Creating viral clip from {start_time}s for {duration}s")
         
@@ -978,14 +1069,24 @@ class ViralClipGenerator:
             )
         
         if success:
-            print("🎉 VIRAL CLIP GENERATED!")
+            print("🎉 VIRAL CLIP GENERATED! Now adding polish...")
             
-            # Step 5: Transcribe audio
+            # Step 5: Transcribe audio for the CLIP
             print("📝 Step 5: Generating captions...")
             subtitle_path, segments = self.transcribe_audio(clip_path)
             
+            # Step 6: Burn captions
+            print("🔥 Step 6: Burning captions into video...")
+            burned_path = self.burn_captions(clip_path, subtitle_path)
+            
+            final_path = clip_path
+            if burned_path and os.path.exists(burned_path):
+                # Replace original with burned version or keep both?
+                # Let's keep the burned version as the main one for now
+                final_path = burned_path
+            
             clip_data = {
-                'path': clip_path,
+                'path': final_path,
                 'video_id': video_id,
                 'original_title': video_title,
                 'start_time': start_time,
@@ -993,13 +1094,15 @@ class ViralClipGenerator:
                 'speakers_detected': len(speakers) if speakers else 0,
                 'dynamic_cropping': len(speakers) >= 2,
                 'speaker_switching': len(speakers) >= 2,
-                'file_size_mb': os.path.getsize(clip_path) / (1024*1024),
+                'file_size_mb': os.path.getsize(final_path) / (1024*1024),
                 'created_at': datetime.now().isoformat(),
-                'title': '',
-                'description': '',
+                'title': ai_metadata.get('title', ''),
+                'description': ai_metadata.get('reason', ''),
                 'tags': [],
                 'subtitle_file': subtitle_path,
-                'captions': segments  # Store raw segments too
+                'captions': segments,
+                'ai_score': ai_metadata.get('score'),
+                'ai_reason': ai_metadata.get('reason')
             }
             
             return clip_data
