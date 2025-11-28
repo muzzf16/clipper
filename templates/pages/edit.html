@@ -20,7 +20,6 @@
     <div class="breadcrumb-item">4. Upload</div>
 </div>
 {% endblock %}
-
 {% block content %}
 <div class="edit-page">
     <div class="edit-container">
@@ -35,7 +34,12 @@
                     Toggle Captions
                 </button>
             </div>
-            
+
+            <!-- Clip Selector (Hidden by default) -->
+            <div id="clip-selector" class="clip-selector hidden">
+                <!-- Populated by JS -->
+            </div>
+
             <div class="video-container-with-slider">
                 <!-- Vertical Position Slider -->
                 <div class="caption-position-slider-wrapper">
@@ -43,14 +47,13 @@
                     <div class="slider-track-container">
                         <div class="position-label top">TOP</div>
                         <div class="slider-vertical-wrapper">
-                            <input type="range" id="caption-position-slider" class="vertical-slider" 
-                                   min="0" max="100" value="80" step="1"
-                                   orient="vertical">
+                            <input type="range" id="caption-position-slider" class="vertical-slider" min="0" max="100"
+                                value="80" step="1" orient="vertical">
                         </div>
                         <div class="position-label bottom">BOT</div>
                     </div>
                 </div>
-                
+
                 <!-- Video Wrapper -->
                 <div class="video-wrapper">
                     <video id="clip-video" controls class="video-player">
@@ -61,7 +64,7 @@
                     <div id="caption-position-indicator" class="caption-position-indicator"></div>
                 </div>
             </div>
-            
+
             <!-- Video Info -->
             <div class="video-info-card compact">
                 <h3>Clip Details</h3>
@@ -69,29 +72,29 @@
                     <!-- Populated by JavaScript -->
                 </div>
             </div>
-            
+
             <!-- End Screen Section -->
             <div class="end-screen-controls">
                 <h3>End Screen Message</h3>
                 <p class="section-description">Add a call-to-action at the end of your clip</p>
-                
+
                 <div class="control-group">
                     <label class="checkbox-label">
                         <input type="checkbox" id="end-screen-enabled" class="control-checkbox">
                         <span>Enable End Screen</span>
                     </label>
                 </div>
-                
+
                 <div id="end-screen-settings" class="end-screen-settings hidden">
                     <!-- Message Text -->
                     <div class="control-group message-group">
                         <label for="end-screen-text">Message Text</label>
-                        <textarea id="end-screen-text" class="control-textarea end-screen-textarea" 
-                                  placeholder="Enter your end screen message (e.g., LIKE & SUBSCRIBE)" 
-                                  rows="3">LIKE & SUBSCRIBE</textarea>
+                        <textarea id="end-screen-text" class="control-textarea end-screen-textarea"
+                            placeholder="Enter your end screen message (e.g., LIKE & SUBSCRIBE)"
+                            rows="3">LIKE & SUBSCRIBE</textarea>
                         <span class="control-hint">This message will appear at the end of your clip</span>
                     </div>
-                    
+
                     <!-- Font and Duration -->
                     <div class="control-row">
                         <div class="control-group">
@@ -107,50 +110,52 @@
                         <div class="control-group">
                             <label for="end-screen-duration">Display Duration</label>
                             <div class="slider-container">
-                                <input type="range" id="end-screen-duration" class="control-slider" 
-                                       min="1" max="5" step="0.5" value="2">
+                                <input type="range" id="end-screen-duration" class="control-slider" min="1" max="5"
+                                    step="0.5" value="2">
                                 <span class="slider-value">2s</span>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Color Controls -->
                     <div class="control-row color-row">
                         <div class="control-group-stacked">
                             <div class="control-group">
                                 <label>Fill Color</label>
-                                <button class="color-picker-button end-screen-color" id="end-screen-fill-color" data-color-type="fill" style="background-color: #FFFFFF">
+                                <button class="color-picker-button end-screen-color" id="end-screen-fill-color"
+                                    data-color-type="fill" style="background-color: #FFFFFF">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
                             <div class="control-group" style="margin-top: 10px;">
                                 <label>Outline Color</label>
-                                <button class="color-picker-button end-screen-color" id="end-screen-outline-color" data-color-type="outline" style="background-color: #000000">
+                                <button class="color-picker-button end-screen-color" id="end-screen-outline-color"
+                                    data-color-type="outline" style="background-color: #000000">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
                         </div>
-                        
+
                         <div class="control-group-stacked">
                             <div class="control-group">
                                 <label>Font Size</label>
                                 <div class="slider-container">
-                                    <input type="range" id="end-screen-font-size" class="control-slider" 
-                                           min="20" max="40" step="1" value="28">
+                                    <input type="range" id="end-screen-font-size" class="control-slider" min="20"
+                                        max="40" step="1" value="28">
                                     <span class="slider-value">28px</span>
                                 </div>
                             </div>
                             <div class="control-group" style="margin-top: 10px;">
                                 <label>Outline Thickness</label>
                                 <div class="slider-container">
-                                    <input type="range" id="end-screen-outline-thickness" class="control-slider" 
-                                           min="0" max="5" step="0.5" value="3">
+                                    <input type="range" id="end-screen-outline-thickness" class="control-slider" min="0"
+                                        max="5" step="0.5" value="3">
                                     <span class="slider-value">3px</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Preview -->
                     <div class="end-screen-preview">
                         <label>Preview</label>
@@ -168,7 +173,7 @@
                 <h2>Edit Captions</h2>
                 <p class="panel-description">Click to edit text or change speakers</p>
             </div>
-            
+
             <!-- Caption Controls Section -->
             <div class="caption-controls compact">
                 <!-- Speaker Tabs -->
@@ -184,7 +189,7 @@
                             Speaker 3
                         </button>
                     </div>
-                    
+
                     <!-- Speaker Settings Panels -->
                     <div class="speaker-settings-panel active" data-speaker="1">
                         <div class="settings-grid">
@@ -198,42 +203,45 @@
                                     <option value="Roboto">Roboto</option>
                                 </select>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Size</label>
-                                <input type="range" id="speaker-1-font-size" class="control-slider font-size-slider" 
-                                       data-speaker="1" min="16" max="32" step="1" value="22">
+                                <input type="range" id="speaker-1-font-size" class="control-slider font-size-slider"
+                                    data-speaker="1" min="16" max="32" step="1" value="22">
                                 <span class="slider-value">22px</span>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Fill</label>
-                                <button class="color-picker-button" data-speaker="1" data-color-type="fill" style="background-color: #FF4500">
+                                <button class="color-picker-button" data-speaker="1" data-color-type="fill"
+                                    style="background-color: #FF4500">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Outline</label>
-                                <button class="color-picker-button" data-speaker="1" data-color-type="outline" style="background-color: #000000">
+                                <button class="color-picker-button" data-speaker="1" data-color-type="outline"
+                                    style="background-color: #000000">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Thickness</label>
-                                <input type="range" id="speaker-1-outline-thickness" class="control-slider outline-thickness-slider" 
-                                       data-speaker="1" min="1" max="5" step="0.5" value="2">
+                                <input type="range" id="speaker-1-outline-thickness"
+                                    class="control-slider outline-thickness-slider" data-speaker="1" min="1" max="5"
+                                    step="0.5" value="2">
                                 <span class="slider-value">2px</span>
                             </div>
                         </div>
-                        
+
                         <!-- Compact Preview -->
                         <div class="caption-preview-inline" data-speaker="1">
                             <span class="preview-text">Preview</span>
                         </div>
                     </div>
-                    
+
                     <div class="speaker-settings-panel" data-speaker="2">
                         <div class="settings-grid">
                             <div class="control-group">
@@ -246,42 +254,45 @@
                                     <option value="Roboto">Roboto</option>
                                 </select>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Size</label>
-                                <input type="range" id="speaker-2-font-size" class="control-slider font-size-slider" 
-                                       data-speaker="2" min="16" max="32" step="1" value="22">
+                                <input type="range" id="speaker-2-font-size" class="control-slider font-size-slider"
+                                    data-speaker="2" min="16" max="32" step="1" value="22">
                                 <span class="slider-value">22px</span>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Fill</label>
-                                <button class="color-picker-button" data-speaker="2" data-color-type="fill" style="background-color: #00BFFF">
+                                <button class="color-picker-button" data-speaker="2" data-color-type="fill"
+                                    style="background-color: #00BFFF">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Outline</label>
-                                <button class="color-picker-button" data-speaker="2" data-color-type="outline" style="background-color: #000000">
+                                <button class="color-picker-button" data-speaker="2" data-color-type="outline"
+                                    style="background-color: #000000">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Thickness</label>
-                                <input type="range" id="speaker-2-outline-thickness" class="control-slider outline-thickness-slider" 
-                                       data-speaker="2" min="1" max="5" step="0.5" value="2">
+                                <input type="range" id="speaker-2-outline-thickness"
+                                    class="control-slider outline-thickness-slider" data-speaker="2" min="1" max="5"
+                                    step="0.5" value="2">
                                 <span class="slider-value">2px</span>
                             </div>
                         </div>
-                        
+
                         <!-- Compact Preview -->
                         <div class="caption-preview-inline" data-speaker="2">
                             <span class="preview-text">Preview</span>
                         </div>
                     </div>
-                    
+
                     <div class="speaker-settings-panel" data-speaker="3">
                         <div class="settings-grid">
                             <div class="control-group">
@@ -294,36 +305,39 @@
                                     <option value="Roboto">Roboto</option>
                                 </select>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Size</label>
-                                <input type="range" id="speaker-3-font-size" class="control-slider font-size-slider" 
-                                       data-speaker="3" min="16" max="32" step="1" value="22">
+                                <input type="range" id="speaker-3-font-size" class="control-slider font-size-slider"
+                                    data-speaker="3" min="16" max="32" step="1" value="22">
                                 <span class="slider-value">22px</span>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Fill</label>
-                                <button class="color-picker-button" data-speaker="3" data-color-type="fill" style="background-color: #00FF88">
+                                <button class="color-picker-button" data-speaker="3" data-color-type="fill"
+                                    style="background-color: #00FF88">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Outline</label>
-                                <button class="color-picker-button" data-speaker="3" data-color-type="outline" style="background-color: #000000">
+                                <button class="color-picker-button" data-speaker="3" data-color-type="outline"
+                                    style="background-color: #000000">
                                     <span class="color-swatch"></span>
                                 </button>
                             </div>
-                            
+
                             <div class="control-group">
                                 <label>Thickness</label>
-                                <input type="range" id="speaker-3-outline-thickness" class="control-slider outline-thickness-slider" 
-                                       data-speaker="3" min="1" max="5" step="0.5" value="2">
+                                <input type="range" id="speaker-3-outline-thickness"
+                                    class="control-slider outline-thickness-slider" data-speaker="3" min="1" max="5"
+                                    step="0.5" value="2">
                                 <span class="slider-value">2px</span>
                             </div>
                         </div>
-                        
+
                         <!-- Compact Preview -->
                         <div class="caption-preview-inline" data-speaker="3">
                             <span class="preview-text">Preview</span>
@@ -331,37 +345,43 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="caption-editor" id="captions-editor">
                 <!-- Captions will be loaded here -->
             </div>
-            
+
             <!-- Action Buttons -->
             <div class="edit-actions">
                 <button class="btn btn-ghost" onclick="window.history.back()">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 19l-7-7m0 0l7-7m-7 7h18">
+                        </path>
                     </svg>
                     Back
                 </button>
-                
+
                 <div class="action-group">
                     <button id="update-captions-btn" class="btn btn-secondary">
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
                         </svg>
                         Update Video
                     </button>
-                    
+
                     <button id="continue-btn" class="btn btn-primary">
                         Continue to Upload
                         <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14 5l7 7m0 0l-7 7m7-7H3">
+                            </path>
                         </svg>
                     </button>
                 </div>
             </div>
-            
+
             <!-- Update Progress -->
             <div id="update-progress" class="update-progress hidden">
                 <div class="update-status">
@@ -386,17 +406,25 @@
             <div class="color-section">
                 <h4>Theme Colors</h4>
                 <div class="color-grid theme-colors">
-                    <button class="color-cell" data-color="#FFFFFF" style="background-color: #FFFFFF" title="White"></button>
-                    <button class="color-cell" data-color="#000000" style="background-color: #000000" title="Black"></button>
-                    <button class="color-cell" data-color="#FF0000" style="background-color: #FF0000" title="Red"></button>
-                    <button class="color-cell" data-color="#00FF00" style="background-color: #00FF00" title="Green"></button>
-                    <button class="color-cell" data-color="#0000FF" style="background-color: #0000FF" title="Blue"></button>
-                    <button class="color-cell" data-color="#FFFF00" style="background-color: #FFFF00" title="Yellow"></button>
-                    <button class="color-cell" data-color="#FF00FF" style="background-color: #FF00FF" title="Magenta"></button>
-                    <button class="color-cell" data-color="#00FFFF" style="background-color: #00FFFF" title="Cyan"></button>
+                    <button class="color-cell" data-color="#FFFFFF" style="background-color: #FFFFFF"
+                        title="White"></button>
+                    <button class="color-cell" data-color="#000000" style="background-color: #000000"
+                        title="Black"></button>
+                    <button class="color-cell" data-color="#FF0000" style="background-color: #FF0000"
+                        title="Red"></button>
+                    <button class="color-cell" data-color="#00FF00" style="background-color: #00FF00"
+                        title="Green"></button>
+                    <button class="color-cell" data-color="#0000FF" style="background-color: #0000FF"
+                        title="Blue"></button>
+                    <button class="color-cell" data-color="#FFFF00" style="background-color: #FFFF00"
+                        title="Yellow"></button>
+                    <button class="color-cell" data-color="#FF00FF" style="background-color: #FF00FF"
+                        title="Magenta"></button>
+                    <button class="color-cell" data-color="#00FFFF" style="background-color: #00FFFF"
+                        title="Cyan"></button>
                 </div>
             </div>
-            
+
             <div class="color-section">
                 <h4>Standard Colors</h4>
                 <div class="color-grid standard-colors">
@@ -409,7 +437,7 @@
                     <button class="color-cell" data-color="#FF1493" style="background-color: #FF1493"></button>
                     <button class="color-cell" data-color="#FF69B4" style="background-color: #FF69B4"></button>
                     <button class="color-cell" data-color="#FFC0CB" style="background-color: #FFC0CB"></button>
-                    
+
                     <!-- Row 2: Oranges/Yellows -->
                     <button class="color-cell" data-color="#FF8C00" style="background-color: #FF8C00"></button>
                     <button class="color-cell" data-color="#FFA500" style="background-color: #FFA500"></button>
@@ -419,7 +447,7 @@
                     <button class="color-cell" data-color="#BDB76B" style="background-color: #BDB76B"></button>
                     <button class="color-cell" data-color="#808000" style="background-color: #808000"></button>
                     <button class="color-cell" data-color="#556B2F" style="background-color: #556B2F"></button>
-                    
+
                     <!-- Row 3: Greens -->
                     <button class="color-cell" data-color="#00FF00" style="background-color: #00FF00"></button>
                     <button class="color-cell" data-color="#00FF88" style="background-color: #00FF88"></button>
@@ -429,7 +457,7 @@
                     <button class="color-cell" data-color="#006400" style="background-color: #006400"></button>
                     <button class="color-cell" data-color="#2E8B57" style="background-color: #2E8B57"></button>
                     <button class="color-cell" data-color="#3CB371" style="background-color: #3CB371"></button>
-                    
+
                     <!-- Row 4: Blues -->
                     <button class="color-cell" data-color="#00FFFF" style="background-color: #00FFFF"></button>
                     <button class="color-cell" data-color="#00BFFF" style="background-color: #00BFFF"></button>
@@ -439,7 +467,7 @@
                     <button class="color-cell" data-color="#000080" style="background-color: #000080"></button>
                     <button class="color-cell" data-color="#4169E1" style="background-color: #4169E1"></button>
                     <button class="color-cell" data-color="#483D8B" style="background-color: #483D8B"></button>
-                    
+
                     <!-- Row 5: Purples -->
                     <button class="color-cell" data-color="#FF00FF" style="background-color: #FF00FF"></button>
                     <button class="color-cell" data-color="#DA70D6" style="background-color: #DA70D6"></button>
@@ -449,7 +477,7 @@
                     <button class="color-cell" data-color="#800080" style="background-color: #800080"></button>
                     <button class="color-cell" data-color="#4B0082" style="background-color: #4B0082"></button>
                     <button class="color-cell" data-color="#6A0DAD" style="background-color: #6A0DAD"></button>
-                    
+
                     <!-- Row 6: Grays/Neutrals -->
                     <button class="color-cell" data-color="#FFFFFF" style="background-color: #FFFFFF"></button>
                     <button class="color-cell" data-color="#F5F5F5" style="background-color: #F5F5F5"></button>
@@ -461,7 +489,7 @@
                     <button class="color-cell" data-color="#000000" style="background-color: #000000"></button>
                 </div>
             </div>
-            
+
             <div class="color-selection-info">
                 <span>Selected: </span>
                 <div class="selected-color-preview" id="selected-color-preview"></div>
@@ -474,6 +502,7 @@
 <!-- Hidden data -->
 <input type="hidden" id="job-id" value="{{ job_id }}">
 <input type="hidden" id="clip-data" value='{{ clip_data | tojson }}'>
+<input type="hidden" id="generated-clips" value='{{ generated_clips | tojson }}'>
 {% endblock %}
 
 {% block socket %}

@@ -20,7 +20,7 @@ active_jobs = {}
 
 class ClipJob:
     """Represents a clip generation job"""
-    def __init__(self, job_id, user_id, session_id, url, duration, start_time=None, end_time=None):
+    def __init__(self, job_id, user_id, session_id, url, duration, start_time=None, end_time=None, num_clips=1):
         self.job_id = job_id
         self.user_id = user_id  # Can be None for anonymous users
         self.session_id = session_id  # Always present
@@ -28,10 +28,12 @@ class ClipJob:
         self.duration = duration
         self.start_time = start_time
         self.end_time = end_time
+        self.num_clips = num_clips
         self.status = "starting"
         self.progress = 0
         self.message = "Initializing..."
         self.clip_data = {}
+        self.generated_clips = []  # Store all generated clips
         self.error = None
         self.created_at = datetime.now()
         self.regeneration_status = None
@@ -69,6 +71,7 @@ def save_anonymous_clip(job):
                     'video_url': job.url,
                     'clip_path': job.clip_data.get('path') if job.clip_data else None,
                     'clip_data': job.clip_data,
+                    'generated_clips': job.generated_clips,
                     'updated_at': datetime.utcnow(),
                     'expires_at': datetime.utcnow() + timedelta(days=7)
                 },
@@ -143,13 +146,32 @@ def process_clip_generation(job_id, app_context=None):
         update_job_progress(job_id, "processing", 20, "Downloading video...")
         
         # Generate the clip
-        logger.info(f"Generating clip for job {job_id} with URL: {job.url}, duration: {actual_duration}, start: {actual_start_time}")
+        logger.info(f"Generating clip for job {job_id} with URL: {job.url}, duration: {actual_duration}, start: {actual_start_time}, num_clips: {job.num_clips}")
         
-        clip_data = clipper.generate_viral_clip(
-            video_url=job.url,
-            duration=actual_duration,
-            start_time=actual_start_time
-        )
+        if job.num_clips > 1:
+            # Multi-clip generation
+            clips_data = clipper.generate_multiple_viral_clips(
+                video_url=job.url,
+                num_clips=job.num_clips,
+                duration=actual_duration,
+                start_time=actual_start_time
+            )
+            
+            if clips_data:
+                job.generated_clips = clips_data
+                # Use the first clip as the primary one for backward compatibility
+                clip_data = clips_data[0]
+            else:
+                clip_data = None
+        else:
+            # Single clip generation
+            clip_data = clipper.generate_viral_clip(
+                video_url=job.url,
+                duration=actual_duration,
+                start_time=actual_start_time
+            )
+            if clip_data:
+                job.generated_clips = [clip_data]
         
         logger.info(f"Clip generation result for job {job_id}: {type(clip_data)}, has data: {bool(clip_data)}")
         

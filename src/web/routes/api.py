@@ -29,6 +29,7 @@ def generate_clip():
     duration = data.get('duration', 30)
     start_time = data.get('start_time')
     end_time = data.get('end_time')
+    num_clips = data.get('num_clips', 1)
     
     # Convert MM:SS to seconds if provided
     if start_time:
@@ -39,7 +40,7 @@ def generate_clip():
     # Create job
     job_id = str(uuid.uuid4())
     user_id = user.id if user else None
-    job = ClipJob(job_id, user_id, session_id, url, duration, start_time, end_time)
+    job = ClipJob(job_id, user_id, session_id, url, duration, start_time, end_time, num_clips)
     active_jobs[job_id] = job
     
     # Start background processing

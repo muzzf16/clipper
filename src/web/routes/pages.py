@@ -67,6 +67,7 @@ def edit_page():
     
     # Get clip data
     clip_data = job.clip_data
+    generated_clips = getattr(job, 'generated_clips', [])
     
     # Log the clip data for debugging
     logger.info(f"Edit page - Job ID: {job_id}, Clip data keys: {list(clip_data.keys()) if clip_data else 'None'}")
@@ -81,7 +82,8 @@ def edit_page():
     
     return render_template('pages/edit.html', 
                          job_id=job_id, 
-                         clip_data=clip_data)
+                         clip_data=clip_data,
+                         generated_clips=generated_clips)
 
 @pages_bp.route('/upload')
 @login_required

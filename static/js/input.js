@@ -5,6 +5,8 @@ class InputPage {
         this.form = document.getElementById('clipForm');
         this.durationSlider = document.getElementById('duration-slider');
         this.durationInput = document.getElementById('duration');
+        this.numClipsSlider = document.getElementById('num-clips-slider');
+        this.numClipsInput = document.getElementById('num-clips');
         
         this.initializeEventListeners();
         this.loadRecentActivity();
@@ -30,6 +32,17 @@ class InputPage {
             });
         }
 
+        // Num clips slider sync
+        if (this.numClipsSlider && this.numClipsInput) {
+            this.numClipsSlider.addEventListener('input', (e) => {
+                this.numClipsInput.value = e.target.value;
+            });
+
+            this.numClipsInput.addEventListener('input', (e) => {
+                this.numClipsSlider.value = e.target.value;
+            });
+        }
+
         // Check for return from auth
         this.checkForAuthReturn();
     }
@@ -39,6 +52,7 @@ class InputPage {
         const data = {
             url: formData.get('url'),
             duration: parseInt(formData.get('duration')),
+            num_clips: parseInt(formData.get('num_clips') || 1),
             start_time: formData.get('start_time') || null,
             end_time: formData.get('end_time') || null
         };

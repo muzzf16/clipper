@@ -4,6 +4,7 @@ class EditPage {
     constructor() {
         this.jobId = document.getElementById('job-id').value;
         this.clipData = JSON.parse(document.getElementById('clip-data').value || '{}');
+        this.generatedClips = JSON.parse(document.getElementById('generated-clips')?.value || '[]');
         this.socket = null;
         this.hasUnsavedChanges = false;
 
@@ -55,7 +56,8 @@ class EditPage {
 
         console.log('EditPage initialized with:', {
             jobId: this.jobId,
-            clipData: this.clipData
+            clipData: this.clipData,
+            generatedClips: this.generatedClips
         });
 
         if (!this.jobId) {
@@ -67,6 +69,7 @@ class EditPage {
         this.debugJob();
 
         this.initializeSocket();
+        this.initializeClipSelector();
         this.loadVideo();
         this.loadCaptions();
         this.initializeEventListeners();
@@ -101,6 +104,60 @@ class EditPage {
                 this.handleRegenerationError(data);
             }
         });
+    }
+
+    initializeClipSelector() {
+        const selector = document.getElementById('clip-selector');
+        if (!selector || !this.generatedClips || this.generatedClips.length <= 1) {
+            return;
+        }
+
+        selector.classList.remove('hidden');
+        selector.innerHTML = '';
+
+        const title = document.createElement('h3');
+        title.textContent = 'Select Clip';
+        title.className = 'clip-selector-title';
+        selector.appendChild(title);
+
+        const grid = document.createElement('div');
+        grid.className = 'clip-selector-grid';
+        selector.appendChild(grid);
+
+        this.generatedClips.forEach((clip, index) => {
+            const btn = document.createElement('button');
+            btn.className = `clip-select-btn ${this.isCurrentClip(clip) ? 'active' : ''}`;
+            btn.innerHTML = `
+                <span class="clip-number">#${index + 1}</span>
+                <span class="clip-score">Score: ${clip.ai_score || '?'}</span>
+                <span class="clip-reason">${clip.title || 'Viral Clip'}</span>
+            `;
+            btn.onclick = () => this.switchClip(clip);
+            grid.appendChild(btn);
+        });
+    }
+
+    isCurrentClip(clip) {
+        // Compare by start time or path
+        return clip.start_time === this.clipData.start_time || clip.path === this.clipData.path;
+    }
+
+    switchClip(clip) {
+        console.log('Switching to clip:', clip);
+        this.clipData = clip;
+
+        // Update selector UI
+        const buttons = document.querySelectorAll('.clip-select-btn');
+        buttons.forEach((btn, index) => {
+            btn.classList.toggle('active', this.isCurrentClip(this.generatedClips[index]));
+        });
+
+        // Reload video and captions
+        this.loadVideo();
+        this.loadCaptions();
+
+        // Update details
+        this.displayClipDetails();
     }
 
     loadVideo() {

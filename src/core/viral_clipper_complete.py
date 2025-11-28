@@ -26,6 +26,7 @@ import whisper
 import whisper
 import torch
 from src.core.content_analyzer import ViralContentAnalyzer
+from src.captions.ass_caption_update_system_v6 import ASSCaptionUpdateSystemV6
 
 @dataclass
 class Speaker:
@@ -977,34 +978,78 @@ class ViralClipGenerator:
             return None
         except Exception as e:
             print(f"❌ Error burning captions: {e}")
-            return None
+            
+            # Load model
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            print(f"🚀 Loading Whisper model on {device}...")
+            model = whisper.load_model("base", device=device)
+            
+            # Transcribe
+            result = model.transcribe(video_path)
+            
+            # Save as SRT
+            if output_path:
+                srt_path = output_path
+            else:
+                srt_path = os.path.splitext(video_path)[0] + ".srt"
+                
+            with open(srt_path, "w", encoding="utf-8") as f:
+                for i, segment in enumerate(result["segments"]):
+                    start = self.format_timestamp(segment["start"])
+                    end = self.format_timestamp(segment["end"])
+                    text = segment["text"].strip()
+                    
+                    f.write(f"{i+1}\n")
+                    f.write(f"{start} --> {end}\n")
+                    f.write(f"{text}\n\n")
+            
+            print(f"✅ Transcription saved to: {srt_path}")
+            return srt_path, result["segments"]
+            
+        except Exception as e:
+            print(f"❌ Transcription failed: {e}")
+            return None, []
 
     def generate_viral_clip(self, video_url, start_time=None, duration=30):
+        """Generate a single viral clip (legacy wrapper)"""
+        results = self.generate_multiple_viral_clips(video_url, num_clips=1, start_time=start_time, duration=duration)
+        return results[0] if results else None
+
+    def generate_multiple_viral_clips(self, video_url, num_clips=1, start_time=None, duration=30):
         """
-        🔥 MAIN FUNCTION: Generate a viral clip with SPEAKER SWITCHING! 🔥
-        This version actually implements the viral features!
+        Generate multiple viral clips from a single video.
+        Returns a list of clip_data dictionaries.
         """
-        print("🔥 GENERATING VIRAL CLIP WITH SPEAKER SWITCHING!")
-        print("🚀 This is the REAL viral engine!")
-        print("=" * 60)
+        print(f"🚀 Starting VIRAL clip generation for {num_clips} clip(s)...")
         
         # Step 1: Download video
         print("📥 Step 1: Downloading video...")
         video_path, video_title, video_id = self.download_video(video_url)
+        
         if not video_path:
-            return None
+            print("❌ Failed to download video")
+            return []
+            
+        generated_clips = []
         
-        # Step 2: Find optimal moment (AI or Manual)
-        ai_metadata = {}
-        
-        if start_time is None:
-            print("🤖 Step 2: AI analyzing content for VIRAL moments...")
+        # Determine segments
+        segments = []
+        if start_time is not None:
+            # Manual single segment
+            segments.append({
+                'start_time': start_time,
+                'end_time': start_time + duration,
+                'title': 'Manual Clip',
+                'reason': 'User selected',
+                'score': 10
+            })
+        else:
+            print(f"🤖 Step 2: AI analyzing content for {num_clips} VIRAL moments...")
             
             # Transcribe first 20 mins for analysis (to save time/memory)
-            # We need a temporary audio file for this
             try:
                 print("   Creating temp audio for analysis...")
-                temp_audio = "temp_analysis.mp3"
+                temp_audio = f"temp_analysis_{video_id}.mp3"
                 (
                     ffmpeg
                     .input(video_path, t=1200)  # Limit to 20 mins
@@ -1020,23 +1065,39 @@ class ViralClipGenerator:
                 transcript_text = result['text']
                 
                 # Analyze with Gemini
-                print("   Asking Gemini to find the most viral clip...")
-                analysis = self.content_analyzer.analyze_transcript(transcript_text)
+                print(f"   Asking Gemini to find top {num_clips} viral clips...")
+                analysis_results = self.content_analyzer.analyze_transcript(transcript_text, num_clips=num_clips)
                 
-                if analysis and 'start_time' in analysis:
-                    start_time = analysis['start_time']
-                    # Use AI duration but cap at 60s
-                    duration = min(60, analysis.get('end_time', start_time + 30) - start_time)
-                    ai_metadata = analysis
-                    print(f"🎯 AI Selected Segment: {analysis.get('title', 'Viral Clip')}")
-                    print(f"   Reason: {analysis.get('reason')}")
-                    print(f"   Score: {analysis.get('score')}/10")
-                    print(f"   Timing: {start_time}s for {duration}s")
+                if analysis_results:
+                    for analysis in analysis_results:
+                        if 'start_time' in analysis:
+                            seg_start = analysis['start_time']
+                            # Use AI duration but cap at 60s
+                            seg_duration = min(60, analysis.get('end_time', seg_start + 30) - seg_start)
+                            
+                            segments.append({
+                                'start_time': seg_start,
+                                'end_time': seg_start + seg_duration,
+                                'title': analysis.get('title', 'Viral Clip'),
+                                'reason': analysis.get('reason', 'AI selected'),
+                                'score': analysis.get('score', 8),
+                                'ai_metadata': analysis
+                            })
+                            
+                    print(f"🎯 AI found {len(segments)} potential viral segments")
                 else:
                     print("⚠️ AI analysis failed or returned no result. Falling back to random.")
                     # Fallback
                     fallback_times = [180, 300, 420, 600, 900]
-                    start_time = random.choice(fallback_times)
+                    for _ in range(num_clips):
+                        t = random.choice(fallback_times)
+                        segments.append({
+                            'start_time': t,
+                            'end_time': t + duration,
+                            'title': 'Random Clip',
+                            'reason': 'Fallback',
+                            'score': 5
+                        })
                 
                 # Cleanup
                 if os.path.exists(temp_audio):
@@ -1045,70 +1106,84 @@ class ViralClipGenerator:
             except Exception as e:
                 print(f"❌ Error during AI analysis: {e}")
                 start_time = 300  # Fallback
-        
-        print(f"🎬 Creating viral clip from {start_time}s for {duration}s")
-        
-        # Step 3: ANALYZE SPEAKERS IN THE SEGMENT
-        print("🤖 Step 3: Analyzing speakers in this segment...")
-        speakers = self.detect_speakers_from_segment(video_path, start_time, duration)
-        
-        # Step 4: Create viral clip based on speaker detection
-        print("💥 Step 4: Creating VIRAL clip...")
-        clip_filename = f"viral_clip_{video_id}_{start_time}s.mp4"
-        clip_path = os.path.join('clips', clip_filename)
-        
-        if len(speakers) >= 2:
-            print("🎯 MULTIPLE SPEAKERS DETECTED - CREATING DYNAMIC VIRAL CLIP!")
-            success = self.create_viral_clip_with_speaker_switching(
-                video_path, start_time, duration, clip_path, speakers
-            )
-        else:
-            print("⚠️  Single/no speakers - using smart crop")
-            success = self.create_smart_single_speaker_clip(
-                video_path, start_time, duration, clip_path, speakers
-            )
-        
-        if success:
-            print("🎉 VIRAL CLIP GENERATED! Now adding polish...")
+                segments.append({
+                    'start_time': 300,
+                    'end_time': 330,
+                    'title': 'Fallback Clip',
+                    'reason': 'Error fallback',
+                    'score': 1
+                })
+
+        # Process each segment
+        for i, segment in enumerate(segments):
+            print(f"\n🎬 Processing Clip {i+1}/{len(segments)}: {segment.get('title')}")
             
-            # Step 5: Transcribe audio for the CLIP
-            print("📝 Step 5: Generating captions...")
-            subtitle_path, segments = self.transcribe_audio(clip_path)
+            seg_start = segment['start_time']
+            seg_duration = segment['end_time'] - seg_start
+            ai_metadata = segment.get('ai_metadata', {})
             
-            # Step 6: Burn captions
-            print("🔥 Step 6: Burning captions into video...")
-            burned_path = self.burn_captions(clip_path, subtitle_path)
+            print(f"   Timing: {seg_start}s for {seg_duration}s")
             
-            final_path = clip_path
-            if burned_path and os.path.exists(burned_path):
-                # Replace original with burned version or keep both?
-                # Let's keep the burned version as the main one for now
-                final_path = burned_path
+            # Step 3: ANALYZE SPEAKERS IN THE SEGMENT
+            print("🤖 Step 3: Analyzing speakers in this segment...")
+            speakers = self.detect_speakers_from_segment(video_path, seg_start, seg_duration)
             
-            clip_data = {
-                'path': final_path,
-                'video_id': video_id,
-                'original_title': video_title,
-                'start_time': start_time,
-                'duration': duration,
-                'speakers_detected': len(speakers) if speakers else 0,
-                'dynamic_cropping': len(speakers) >= 2,
-                'speaker_switching': len(speakers) >= 2,
-                'file_size_mb': os.path.getsize(final_path) / (1024*1024),
-                'created_at': datetime.now().isoformat(),
-                'title': ai_metadata.get('title', ''),
-                'description': ai_metadata.get('reason', ''),
-                'tags': [],
-                'subtitle_file': subtitle_path,
-                'captions': segments,
-                'ai_score': ai_metadata.get('score'),
-                'ai_reason': ai_metadata.get('reason')
-            }
+            # Step 4: Create viral clip based on speaker detection
+            print("💥 Step 4: Creating VIRAL clip...")
+            clip_filename = f"viral_clip_{video_id}_{int(seg_start)}s.mp4"
+            clip_path = os.path.join('clips', clip_filename)
             
-            return clip_data
-        else:
-            print("❌ Failed to generate viral clip")
-            return None
+            if len(speakers) >= 2:
+                print("🎯 MULTIPLE SPEAKERS DETECTED - CREATING DYNAMIC VIRAL CLIP!")
+                success = self.create_viral_clip_with_speaker_switching(
+                    video_path, seg_start, seg_duration, clip_path, speakers
+                )
+            else:
+                print("⚠️  Single/no speakers - using smart crop")
+                success = self.create_smart_single_speaker_clip(
+                    video_path, seg_start, seg_duration, clip_path, speakers
+                )
+            
+            if success:
+                print("🎉 VIRAL CLIP GENERATED! Now adding polish...")
+                
+                # Step 5: Transcribe audio for the CLIP
+                print("📝 Step 5: Generating captions...")
+                subtitle_path, caption_segments = self.transcribe_audio(clip_path)
+                
+                # Step 6: Burn captions
+                print("🔥 Step 6: Burning captions into video...")
+                burned_path = self.burn_captions(clip_path, subtitle_path)
+                
+                final_path = clip_path
+                if burned_path and os.path.exists(burned_path):
+                    final_path = burned_path
+                
+                clip_data = {
+                    'path': final_path,
+                    'video_id': video_id,
+                    'original_title': video_title,
+                    'start_time': seg_start,
+                    'duration': seg_duration,
+                    'speakers_detected': len(speakers) if speakers else 0,
+                    'dynamic_cropping': len(speakers) >= 2,
+                    'speaker_switching': len(speakers) >= 2,
+                    'file_size_mb': os.path.getsize(final_path) / (1024*1024),
+                    'created_at': datetime.now().isoformat(),
+                    'title': segment.get('title', ''),
+                    'description': segment.get('reason', ''),
+                    'tags': [],
+                    'subtitle_file': subtitle_path,
+                    'captions': caption_segments,
+                    'ai_score': segment.get('score'),
+                    'ai_reason': segment.get('reason')
+                }
+                
+                generated_clips.append(clip_data)
+            else:
+                print(f"❌ Failed to generate clip {i+1}")
+
+        return generated_clips
 
     def transcribe_audio(self, video_path, output_path=None):
         """Transcribe audio from video file using Whisper"""
@@ -1257,7 +1332,59 @@ class ViralClipGenerator:
                     print(f"❌ Upload failed after 3 retries: {error}")
                     break
         
-        return response
+    def update_captions_ass(self, subtitle_file, updated_captions, video_duration, caption_position, caption_position_percent, speaker_colors, speaker_settings, end_screen):
+        """Update captions using ASS system - Wrapper for ASSCaptionUpdateSystemV6"""
+        try:
+            print("🔄 Delegating to ASSCaptionUpdateSystemV6...")
+            ass_system = ASSCaptionUpdateSystemV6()
+            return ass_system.update_ass_file_with_edits(
+                original_ass_path=subtitle_file,
+                updated_captions=updated_captions,
+                video_duration=video_duration,
+                caption_position=caption_position,
+                caption_position_percent=caption_position_percent,
+                speaker_colors=speaker_colors,
+                speaker_settings=speaker_settings,
+                end_screen=end_screen
+            )
+        except Exception as e:
+            print(f"❌ Error in update_captions_ass wrapper: {e}")
+            return False
+
+    def burn_captions_into_video_debug(self, video_path, subtitle_path, output_path):
+        """Burn ASS captions into video"""
+        try:
+            print(f"🔥 Burning ASS captions from {subtitle_path} into {video_path}...")
+            
+            # Escape path for FFmpeg filter
+            # Windows paths need special handling in filter strings
+            srt_path_escaped = subtitle_path.replace('\\', '/').replace(':', '\\:')
+            
+            (
+                ffmpeg
+                .input(video_path)
+                .output(
+                    output_path,
+                    vf=f"ass='{srt_path_escaped}'",
+                    vcodec='libx264',
+                    acodec='copy',
+                    **{'preset': 'fast', 'crf': '23'}
+                )
+                .overwrite_output()
+                .run(quiet=False, capture_stderr=True)
+            )
+            
+            print(f"✅ ASS Captions burned successfully: {output_path}")
+            return True
+            
+        except ffmpeg.Error as e:
+            print(f"❌ FFmpeg Error burning ASS captions: {e}")
+            if e.stderr:
+                print(f"🔴 Stderr: {e.stderr.decode('utf8')}")
+            return False
+        except Exception as e:
+            print(f"❌ Error burning ASS captions: {e}")
+            return False
 
 
 def main():

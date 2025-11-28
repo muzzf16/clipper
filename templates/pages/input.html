@@ -79,6 +79,28 @@
                 <div class="form-hint">Recommended: 30-45 seconds for maximum engagement</div>
             </div>
 
+            <!-- Number of Clips -->
+            <div class="form-group">
+                <label class="form-label" for="num-clips">Number of Clips</label>
+                <div class="duration-slider">
+                    <input type="range" 
+                           id="num-clips-slider" 
+                           min="1" 
+                           max="5" 
+                           value="1" 
+                           class="slider">
+                    <input type="number" 
+                           id="num-clips" 
+                           name="num_clips" 
+                           class="form-input duration-input" 
+                           value="1" 
+                           min="1" 
+                           max="5" 
+                           required>
+                </div>
+                <div class="form-hint">Generate multiple viral clips at once (Max 5)</div>
+            </div>
+
             <!-- Generate Button -->
             <button type="submit" class="btn btn-primary btn-lg btn-full">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
